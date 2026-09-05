@@ -22,10 +22,11 @@ PROPOSAL_SCHEMA = {
         "proposed_link": {
             "type": "array",
             "items": {"type": "string"},
+            "uniqueItems": True,
             "description": ("Settlement entity ids (pay_/rfnd_/cb_/adj_) that together "
-                            "account for this bank line. EMPTY if you cannot determine "
-                            "them — an empty list is a valid and preferred answer when "
-                            "the evidence does not force one."),
+                            "account for this bank line. Each id at most once. EMPTY if "
+                            "you cannot determine them: an empty list is a valid and "
+                            "preferred answer when the evidence does not force one."),
         },
         "confidence": {"type": "number", "minimum": 0, "maximum": 1},
         "unresolvable_reason": {
@@ -38,6 +39,39 @@ PROPOSAL_SCHEMA = {
                  "unresolvable_reason"],
     "additionalProperties": False,
 }
+
+def validate(proposal):
+    """Check a decoded reply against the contract. Returns a reason, or None."""
+    if not isinstance(proposal, dict):
+        return f"expected a JSON object, got {type(proposal).__name__}"
+
+    missing = [k for k in PROPOSAL_SCHEMA["required"] if k not in proposal]
+    if missing:
+        return f"missing required field(s): {', '.join(missing)}"
+
+    link = proposal["proposed_link"]
+    if not isinstance(link, list) or not all(isinstance(e, str) for e in link):
+        return "proposed_link must be a list of strings"
+    if len(set(link)) != len(link):
+        return "proposed_link repeats a settlement id"
+
+    if not isinstance(proposal["hypothesis"], str):
+        return "hypothesis must be a string"
+    if not isinstance(proposal["arithmetic"], str):
+        return "arithmetic must be a string"
+
+    confidence = proposal["confidence"]
+    if isinstance(confidence, bool) or not isinstance(confidence, (int, float)):
+        return f"confidence must be a number, got {type(confidence).__name__}"
+    if not 0 <= confidence <= 1:
+        return f"confidence {confidence} is outside 0..1"
+
+    reason = proposal["unresolvable_reason"]
+    if reason is not None and not isinstance(reason, str):
+        return "unresolvable_reason must be a string or null"
+
+    return None
+
 
 SYSTEM = """\
 You are a reconciliation analyst for an Indian merchant using Razorpay. You are \

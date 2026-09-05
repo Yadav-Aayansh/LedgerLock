@@ -89,15 +89,26 @@ def verify(proposal, txn, rows_by_id, claimed_entity_ids, indeterminate, window_
     if not link:
         # Not a failure. "I cannot resolve this" is a first-class answer (§10)
         # and is handled by the caller, not rejected here.
-        r.check("proposal_present", False, "no link proposed — treated as unresolvable")
+        r.check("proposal_present", False, "no link proposed, treated as unresolvable")
         return Verdict(False, r.checks)
+
+    # 0. No id twice: a repeat is counted twice by the sum below.
+    seen, repeated = set(), set()
+    for entity_id in link:
+        if entity_id in seen:
+            repeated.add(entity_id)
+        seen.add(entity_id)
+    repeated = sorted(repeated)
+    r.check("distinct_lines", not repeated,
+            f"the same settlement line is proposed more than once: {', '.join(repeated)}"
+            if repeated else f"all {len(link)} proposed lines are distinct")
 
     # 1. Determinacy. Runs first: if the engine proved the evidence cannot
     #    single out an answer, no amount of correct arithmetic makes a guess
     #    correct, and every later check would pass on a coin flip.
     r.check("determinacy",
             txn.bank_txn_id not in indeterminate,
-            f"the engine proved {txn.bank_txn_id} indeterminate — more than one "
+            f"the engine proved {txn.bank_txn_id} indeterminate: more than one "
             f"candidate fits equally well, so any proposal here is a guess that "
             f"arithmetic cannot falsify"
             if txn.bank_txn_id in indeterminate else
@@ -160,7 +171,7 @@ def verify(proposal, txn, rows_by_id, claimed_entity_ids, indeterminate, window_
     delta = txn.signed - total
     r.check("sum_balances", abs(delta) <= tolerance_paisa,
             f"proposed lines net {format_rupees(total)} against a bank amount of "
-            f"{format_rupees(txn.signed)} — off by {format_rupees(delta)}"
+            f"{format_rupees(txn.signed)}, off by {format_rupees(delta)}"
             if abs(delta) > tolerance_paisa else
             f"{len(rows)} lines net exactly {format_rupees(total)}")
 

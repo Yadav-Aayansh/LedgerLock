@@ -71,7 +71,7 @@ class RedTeamCase:
 SUITE = [
     RedTeamCase(
         "correct_proposal",
-        "a genuinely right answer — the suite is worthless if nothing passes",
+        "a genuinely right answer; the suite is worthless if nothing passes",
         ["pay_A1", "pay_A2", "pay_A3"], _txn("b1", A_NET), True),
     RedTeamCase(
         "netted_against_gross",
@@ -87,7 +87,7 @@ SUITE = [
         ["pay_C1"], _txn("b4", C1.net), False, "line_arithmetic"),
     RedTeamCase(
         "balanced_guess_on_an_indeterminate_line",
-        "perfect arithmetic on a line where two candidates fit equally well — "
+        "perfect arithmetic on a line where two candidates fit equally well, "
         "the failure no amount of recomputation can catch",
         ["pay_A1", "pay_A2", "pay_A3"], _txn("b5", A_NET), False, "determinacy",
         indeterminate=frozenset({"b5"})),
@@ -110,8 +110,12 @@ SUITE = [
         "reached outside the date window for a number that happened to fit",
         ["pay_D1"], _txn("b9", D1.net), False, "date_window"),
     RedTeamCase(
+        "same_line_proposed_twice",
+        "counted one settlement line twice so the total would reach the credit",
+        ["pay_B1", "pay_B1"], _txn("b11", B1.net * 2), False, "distinct_lines"),
+    RedTeamCase(
         "confident_but_empty",
-        "high confidence, no actual link — must not be read as a match",
+        "high confidence, no actual link; must not be read as a match",
         [], _txn("b10", A_NET), False, "proposal_present"),
 ]
 
