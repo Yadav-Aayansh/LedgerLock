@@ -1,0 +1,25 @@
+[project]
+name = "ledgerlock"
+version = "1.0.0"
+description = "A reconciliation engine that matches orders, settlements and bank credits — and refuses to guess."
+requires-python = ">=3.11"
+
+# The ENGINE has zero dependencies. `make demo` runs on a bare interpreter and
+# always will — that is the reproducibility promise in the README.
+#
+# Everything below is for the optional web viewer (`make web`), which exists so
+# the pipeline can be shown on screen instead of read from a terminal.
+dependencies = [
+    "fastapi>=0.115",
+    "uvicorn>=0.32",
+    "python-multipart>=0.0.9",
+]
+
+[project.optional-dependencies]
+# Only needed to call Anthropic's Messages API directly. Every OpenAI-shaped
+# endpoint (OpenAI, OpenRouter, Gemini, vLLM, Ollama, LM Studio) works without
+# this, over stdlib HTTP.
+anthropic = ["anthropic>=0.40"]
+
+[tool.uv]
+package = false
