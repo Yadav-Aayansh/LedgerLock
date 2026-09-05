@@ -5,6 +5,9 @@ from datetime import datetime
 from matcher.decision import MATCHED, REFUSED, UNRESOLVED, Decision
 from matcher.tiers import FINALIZERS, REFERENCE_BACKED, TIERS
 
+RESIDUE_RANK = {"": 0, "no_candidate": 1, "t3_salvage": 2, "rejected": 3,
+                "capped": 4, "ambiguous": 5}
+
 
 class State:
     def __init__(self, bank, groups, audit):
@@ -13,6 +16,7 @@ class State:
         self.audit = audit
         self.decisions = {t.bank_txn_id: Decision(t.bank_txn_id) for t in bank}
         self.claimed = set()
+        self.claimed_entities = set()
 
     def open_txns(self):
         return [t for t in self.bank if self.decisions[t.bank_txn_id].status == UNRESOLVED]
@@ -31,6 +35,7 @@ class State:
         d.evidence = evidence
         for g in groups:
             self.claimed.add(g.settlement_id)
+        self.claimed_entities.update(d.payment_ids)
         # Evidence is nested, not splatted: a tier is free to name an evidence
         # key anything without colliding with the trail's own fields.
         self.audit.log(tier, "matched", bank_txn_id=txn.bank_txn_id,
@@ -43,6 +48,9 @@ class State:
         Deliberately a separate entry point from `accept`. The tiers own
         `accept`; anything model-originated has to come through here, and the
         only caller is the code path that has just run verifier.verify.
+
+        Only the lines actually linked are claimed. The settlement closes only
+        once every processed line in it is spoken for.
         """
         d = self.decisions[txn.bank_txn_id]
         d.status = MATCHED
@@ -52,17 +60,34 @@ class State:
         d.confidence = confidence
         d.reason = reason
         d.evidence = evidence
-        self.claimed.update(d.settlement_ids)
+        self.claimed_entities.update(d.payment_ids)
+
+        partial = []
+        for sid in d.settlement_ids:
+            group = self.groups.get(sid)
+            outstanding = [r.entity_id for r in group.processed
+                           if r.entity_id not in self.claimed_entities] if group else []
+            if outstanding:
+                partial.append({"settlement_id": sid, "still_unlinked": outstanding})
+            else:
+                self.claimed.add(sid)
+
         self.audit.log(tier, "matched_after_verification", bank_txn_id=d.bank_txn_id,
                        settlement_ids=d.settlement_ids, line_count=len(d.payment_ids),
-                       confidence=confidence, reason=reason, evidence=evidence)
+                       confidence=confidence, reason=reason, evidence=evidence,
+                       partially_linked=partial or None)
 
     def mark_reason(self, txn, reason, kind=""):
-        """Record why a tier declined, without resolving the line."""
+        """Record why a tier declined, without resolving the line.
+
+        The reason is the latest tier's; the kind is the strongest seen.
+        """
         d = self.decisions[txn.bank_txn_id]
-        if d.status == UNRESOLVED:
-            d.reason = reason
-            d.residue_kind = kind or d.residue_kind
+        if d.status != UNRESOLVED:
+            return
+        d.reason = reason
+        if RESIDUE_RANK.get(kind, 0) > RESIDUE_RANK.get(d.residue_kind, 0):
+            d.residue_kind = kind
 
     def refuse(self, txn, reason, evidence):
         """Actively declare a line not-a-settlement.
