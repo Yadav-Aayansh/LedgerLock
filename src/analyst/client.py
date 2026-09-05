@@ -29,10 +29,13 @@ as not run for that line — never silently skipped, and never faked.
 import hashlib
 import json
 import os
+import re
 import urllib.error
 import urllib.request
 from dataclasses import dataclass, field
 from pathlib import Path
+
+from analyst.schema import validate
 
 ANTHROPIC_PROTOCOL, OPENAI_PROTOCOL = "anthropic", "openai"
 OFF, REPLAY, LIVE = "off", "replay", "live"
@@ -49,6 +52,16 @@ PRICING = {
     "claude-sonnet-5": (2.00, 10.00),
     "claude-haiku-4-5": (1.00, 5.00),
 }
+
+_DATE_SUFFIX = re.compile(r"-\d{8}$")
+
+
+def price_for(model):
+    """Published rate for a model id, ignoring any -YYYYMMDD snapshot suffix."""
+    if not model:
+        return ()
+    bare = model.rsplit("/", 1)[-1]
+    return PRICING.get(bare) or PRICING.get(_DATE_SUFFIX.sub("", bare)) or ()
 
 
 @dataclass(frozen=True)
@@ -131,7 +144,7 @@ def build_provider(preset="anthropic", base_url=None, model=None, protocol=None,
         base_url=(base_url if base_url is not None else p_url).rstrip("/"),
         model=model,
         key_env=key_env if key_env is not None else p_key,
-        price=tuple(price) if price else PRICING.get(model, ()),
+        price=tuple(price) if price else price_for(model),
         key_value=key_value or "",
     )
 
@@ -210,7 +223,9 @@ class AnalystClient:
         """Returns (proposal_dict, source) or (None, reason)."""
         key = self.key(packet)
 
-        if key in self.cache:
+        # Live means live. Replaying here would report a cached answer as a
+        # fresh call, which is a fabricated measurement.
+        if key in self.cache and self.mode != LIVE:
             rec = self.cache[key]
             self.usage["input_tokens"] += rec["usage"]["input_tokens"]
             self.usage["output_tokens"] += rec["usage"]["output_tokens"]
@@ -224,6 +239,10 @@ class AnalystClient:
         proposal, usage, err = call(packet)
         if err:
             return None, err
+
+        bad = validate(proposal)
+        if bad:
+            return None, f"response did not match the contract: {bad}"
 
         self.calls += 1
         self.usage["input_tokens"] += usage["input_tokens"]
@@ -243,10 +262,13 @@ class AnalystClient:
     # -- OpenAI-shaped /chat/completions -----------------------------------
 
     def _call_openai(self, packet):
+        return self._post_openai(packet, "max_completion_tokens")
+
+    def _post_openai(self, packet, cap_field):
         p = self.provider
         body = json.dumps({
             "model": p.model,
-            "max_tokens": 8000,
+            cap_field: 8000,
             "messages": [{"role": "system", "content": self.system},
                          {"role": "user", "content": json.dumps(packet, indent=2)}],
             "response_format": {"type": "json_schema", "json_schema": {
@@ -261,6 +283,10 @@ class AnalystClient:
             with urllib.request.urlopen(req, timeout=180) as resp:
                 data = json.loads(resp.read())
         except urllib.error.HTTPError as exc:
+            # Older and self-hosted endpoints only know `max_tokens`; newer
+            # OpenAI models only know `max_completion_tokens`. Try the other.
+            if exc.code == 400 and cap_field == "max_completion_tokens":
+                return self._post_openai(packet, "max_tokens")
             # Report the status, not the body: an error body can echo the request.
             return None, None, f"endpoint returned HTTP {exc.code}"
         except (urllib.error.URLError, TimeoutError) as exc:
@@ -317,7 +343,12 @@ class AnalystClient:
         if not text:
             return None, None, "no text block in the response"
 
-        return (json.loads(text),
+        try:
+            proposal = json.loads(text)
+        except json.JSONDecodeError as exc:
+            return None, None, f"response was not valid JSON: {exc}"
+
+        return (proposal,
                 {"input_tokens": response.usage.input_tokens,
                  "output_tokens": response.usage.output_tokens},
                 None)

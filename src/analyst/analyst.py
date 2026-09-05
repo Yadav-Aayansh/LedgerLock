@@ -68,8 +68,6 @@ def analyse(state, groups, rows_by_id, audit, cache_path, mode,
               protocol=provider.protocol, model=provider.model, residue=len(residue),
               reason=client.unavailable_reason or None)
 
-    claimed_entities = {e for d in state.decisions.values() for e in d.payment_ids}
-
     for txn in residue:
         decision = state.decisions[txn.bank_txn_id]
         events = [e for e in audit.recent(txn.bank_txn_id)]
@@ -85,7 +83,10 @@ def analyse(state, groups, rows_by_id, audit, cache_path, mode,
 
         link = proposal.get("proposed_link") or []
         hypothesis = proposal.get("hypothesis", "")
-        confidence = float(proposal.get("confidence") or 0)
+        try:
+            confidence = float(proposal.get("confidence") or 0)
+        except (TypeError, ValueError):
+            confidence = 0.0
 
         if not link:
             # §10: a first-class answer, counted as such rather than as a miss.
@@ -103,7 +104,7 @@ def analyse(state, groups, rows_by_id, audit, cache_path, mode,
         # Tolerance zero: the tiers need slack because they compare against
         # reconstructed figures, but the verifier recomputes every component
         # itself, so it demands the paisa.
-        verdict = verify(proposal, txn, rows_by_id, claimed_entities, indeterminate,
+        verdict = verify(proposal, txn, rows_by_id, state.claimed_entities, indeterminate,
                          window_days, tolerance_paisa=0)
 
         audit.log("analyst", "proposal", bank_txn_id=txn.bank_txn_id, source=source,
@@ -127,7 +128,6 @@ def analyse(state, groups, rows_by_id, audit, cache_path, mode,
                               reason=f"analyst hypothesis, verified: {hypothesis}",
                               evidence={"arithmetic": proposal.get("arithmetic"),
                                         "checks": len(verdict.checks)})
-        claimed_entities.update(link)
         report.accepted += 1
         report.outcomes.append(AnalystOutcome(txn.bank_txn_id, "accepted",
                                               verdict.summary(), hypothesis, confidence,
