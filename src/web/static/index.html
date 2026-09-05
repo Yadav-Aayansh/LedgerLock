@@ -1,0 +1,130 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LedgerLock</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+<div class="app">
+
+  <aside class="side">
+    <div class="brand">Ledger<span>Lock</span></div>
+    <nav>
+      <button class="nav-item" data-step="ledgers" aria-current="true"><span class="ord">1</span>Ledgers</button>
+      <button class="nav-item" data-step="engine"  aria-current="false" disabled><span class="ord">2</span>Engine</button>
+      <button class="nav-item" data-step="analyst" aria-current="false" disabled><span class="ord">3</span>Model</button>
+      <button class="nav-item" data-step="accuracy" aria-current="false" disabled><span class="ord">4</span>Accuracy</button>
+    </nav>
+  </aside>
+
+  <main class="main">
+
+    <!-- 1 ─────────────────────────────────────────── -->
+    <section id="panel-ledgers">
+      <header class="pagehead">
+        <div>
+          <h1>Ledgers</h1>
+          <div class="desc">Three sources of the same money.</div>
+        </div>
+        <div class="actions">
+          <span class="lbl">Seed</span>
+          <input type="number" id="seed" class="slim" value="42" min="0">
+          <button class="btn primary" id="btn-generate">Generate</button>
+          <button class="btn" id="btn-pick">Upload CSVs</button>
+          <input type="file" id="file-input" multiple accept=".csv" class="hidden">
+        </div>
+      </header>
+      <div class="body">
+        <div id="notice-1"></div>
+        <div class="empty" id="empty-1">No dataset loaded. Generate one from a seed, or upload your own CSVs.</div>
+        <div class="stats" id="stats"></div>
+        <div class="drop" id="dropzone">Drop orders, settlements, bank statement, and an answer key if you have one. Files are read by their columns, not their names.</div>
+        <div id="upload-report"></div>
+        <div class="grid3" id="ledger-tables"></div>
+      </div>
+    </section>
+
+    <!-- 2 ─────────────────────────────────────────── -->
+    <section id="panel-engine" class="hidden">
+      <header class="pagehead">
+        <div>
+          <h1>Engine</h1>
+          <div class="desc">Deterministic matching. No model involved.</div>
+        </div>
+        <div class="actions">
+          <span class="lbl mono" id="run-hint"></span>
+          <button class="btn primary" id="btn-run">Run</button>
+        </div>
+      </header>
+      <div class="body">
+        <div id="notice-2"></div>
+        <div id="engine-results"></div>
+      </div>
+    </section>
+
+    <!-- 3 ─────────────────────────────────────────── -->
+    <section id="panel-analyst" class="hidden">
+      <header class="pagehead">
+        <div>
+          <h1>Model</h1>
+          <div class="desc">Proposals only. The verifier decides what becomes a match.</div>
+        </div>
+        <div class="actions">
+          <span class="lbl mono" id="analyst-hint"></span>
+          <button class="btn" id="btn-analyst-replay">Replay</button>
+          <button class="btn primary" id="btn-analyst-live">Call model</button>
+        </div>
+      </header>
+      <div class="body">
+        <div id="notice-3"></div>
+        <div class="panel"><div class="pad">
+          <div class="formgrid">
+            <label class="fld"><span>Provider</span>
+              <select id="provider"></select></label>
+            <label class="fld"><span>Base URL</span>
+              <input type="text" id="base-url" placeholder="https://"></label>
+            <label class="fld"><span>Model</span>
+              <input type="text" id="model" list="model-list" placeholder="model id" autocomplete="off">
+              <datalist id="model-list"></datalist></label>
+            <label class="fld"><span>API key</span>
+              <input type="password" id="api-key" placeholder="not required"></label>
+          </div>
+          <div class="formfoot">
+            <label class="check"><input type="checkbox" id="remember" checked>
+              Remember on this machine</label>
+            <span class="hint" id="store-hint"></span>
+            <button class="btn" id="btn-forget">Forget saved</button>
+          </div>
+        </div></div>
+        <div id="analyst-results"></div>
+      </div>
+    </section>
+
+    <!-- 4 ─────────────────────────────────────────── -->
+    <section id="panel-accuracy" class="hidden">
+      <header class="pagehead">
+        <div>
+          <h1>Accuracy</h1>
+          <div class="desc">Graded against the link table the engine never sees.</div>
+        </div>
+        <div class="actions">
+          <button class="btn primary" id="btn-reveal">Open answer key</button>
+        </div>
+      </header>
+      <div class="body">
+        <div id="notice-4"></div>
+        <div class="sealed" id="sealed"><div class="t" id="sealed-copy">Sealed until you open it.</div></div>
+        <div id="accuracy-results"></div>
+      </div>
+    </section>
+
+  </main>
+</div>
+<script type="module" src="/static/app.js"></script>
+</body>
+</html>
