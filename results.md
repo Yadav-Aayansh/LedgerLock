@@ -1,6 +1,6 @@
 # results.md
 
-Generated 2026-09-05 11:29 UTC from seed 42. Reproduce with `make demo`: every figure below is byte-identical on a rerun except wall-clock runtime, which is a measurement of this machine rather than a result.
+Seed 42. Reproduce with `make demo`: every figure below is byte-identical on a rerun except wall-clock runtime, which is a measurement of this machine rather than a result.
 
 **Tiers active: T0, T3, T1, T2, T2b.** All five stages of §6 are built. Where a figure below is zero, the section beneath it says whether that is because nothing ran or because nothing was wrong.
 
@@ -13,8 +13,8 @@ Generated 2026-09-05 11:29 UTC from seed 42. Reproduce with `make demo`: every f
 | | |
 |---|---|
 | Bank lines | 38 |
-| — of which genuine settlement lines | 33 |
-| — of which not settlements at all | 5 |
+| of which genuine settlement lines | 33 |
+| of which not settlements at all | 5 |
 | Settlement report lines | 142 in 33 settlements |
 | Orders | 146 |
 
@@ -29,8 +29,8 @@ Generated 2026-09-05 11:29 UTC from seed 42. Reproduce with `make demo`: every f
 | Unresolved count | 2 | genuine settlement lines |
 | Correct refusals | 5 of 5 foreign lines | — |
 | Verifier rejection rate | — | LLM proposals (0) |
-| Cost per 50 records | 71,650 tokens per 50 lines | gemini-2.5-pro — 2,866 tokens over 2 line(s); no published rate asserted for this provider |
-| Wall-clock runtime | 0.012s | full pipeline |
+| Cost per 50 records | 71,650 tokens per 50 lines | gemini-2.5-pro, 2,866 tokens over 2 line(s); no published rate asserted for this provider |
+| Wall-clock runtime | 0.005s | full pipeline |
 
 ## Outcome buckets
 
@@ -66,13 +66,13 @@ The 2 unresolved line(s), by what it would take to resolve them:
 
 | Why it is open | Count | What would close it |
 |---|---|---|
-| Genuinely ambiguous — more than one settlement fits equally well | 2 | a reference the data does not contain; guessing is a coin flip |
+| Genuinely ambiguous: more than one settlement fits equally well | 2 | a reference the data does not contain; guessing is a coin flip |
 
 ## Assumptions this run rests on
 
 - **Date window.** A payout is assumed to credit within 3 calendar days of its settlement date. Every amount-based tier and the refusal rule depend on it; a genuine settlement landing outside it would be missed, and could be refused.
 - **Tolerance.** ±5 paisa, sized to absorb reconstruction rounding and nothing else. It is three orders of magnitude below the smallest fee in the data, so it cannot silently swallow one. Asserted in `tests/test_tiers.py`.
-- **Refusals chain off earlier tiers.** A line is refused when the unclaimed settlements in its window provably cannot reach its amount. That proof is sound only if no earlier tier claimed a settlement wrongly — a false match could, in principle, turn into a false refusal downstream. With 0 false matches this run, no such chain exists.
+- **Refusals chain off earlier tiers.** A line is refused when the unclaimed settlements in its window provably cannot reach its amount. That proof is sound only if no earlier tier claimed a settlement wrongly. A false match could, in principle, turn into a false refusal downstream. With 0 false matches this run, no such chain exists.
 
 ## What the matches rest on
 
@@ -115,13 +115,13 @@ ambiguity trap, where two settlements of identical value fall on the same
 date with no reference to separate them. §10 makes "I cannot resolve
 this" a first-class output and the prompt asks for it explicitly, so a
 model that declines is scoring well. Had it guessed, the verifier would
-have rejected the guess at `determinacy` — the run is safe either way,
+have rejected the guess at `determinacy`. The run is safe either way,
 but only one of those outcomes is the model being right.
 
 Responses are recorded to `runs/analyst_cache.jsonl` keyed by a hash of the
 exact prompt, and replayed on later runs. A report whose figures move
 between runs is not reproducible, so the model is called once and its
-answer is pinned — `--analyst live` records, the default replays.
+answer is pinned: `--analyst live` records, the default replays.
 
 ### Verifier, measured against deliberate mistakes
 
@@ -133,21 +133,22 @@ reason counts as a failure.
 
 | Fabricated mistake | Should be | Verifier said | |
 |---|---|---|---|
-| a genuinely right answer — the suite is worthless if nothing passes | accept | accept | ✓ |
+| a genuinely right answer; the suite is worthless if nothing passes | accept | accept | ✓ |
 | summed the sale amounts and forgot the fee and GST were deducted | reject at sum_balances | reject at sum_balances | ✓ |
 | arithmetic right to the rupee, wrong to the paisa | reject at sum_balances | reject at sum_balances | ✓ |
 | GST rounded down rather than half-up on the fee (EC10) | reject at line_arithmetic | reject at line_arithmetic | ✓ |
-| perfect arithmetic on a line where two candidates fit equally well — the failure no amount of recomputation can catch | reject at determinacy | reject at determinacy | ✓ |
+| perfect arithmetic on a line where two candidates fit equally well, the failure no amount of recomputation can catch | reject at determinacy | reject at determinacy | ✓ |
 | a plausible-looking id that is not in the report | reject at existence | reject at existence | ✓ |
 | claimed a settlement another bank line already owns | reject at availability | reject at availability | ✓ |
 | added money that never left Razorpay to force the sum to balance | reject at settlement_status | reject at settlement_status | ✓ |
 | reached outside the date window for a number that happened to fit | reject at date_window | reject at date_window | ✓ |
-| high confidence, no actual link — must not be read as a match | reject at proposal_present | reject at proposal_present | ✓ |
+| counted one settlement line twice so the total would reach the credit | reject at distinct_lines | reject at distinct_lines | ✓ |
+| high confidence, no actual link; must not be read as a match | reject at proposal_present | reject at proposal_present | ✓ |
 
-**10/10 adjudicated correctly.**
+**11/11 adjudicated correctly.**
 
-The fifth row is the one that matters most. Its arithmetic is flawless —
-the proposed settlements net to the credit exactly — and an
+The fifth row is the one that matters most. Its arithmetic is flawless,
+the proposed settlements net to the credit exactly, and an
 arithmetic-only verifier would accept it and record a coin flip as a
 verified fact. Recomputing the maths is necessary but not sufficient, so
 the verifier also refuses any proposal for a line the deterministic engine
@@ -159,7 +160,7 @@ a finding.
 | # | Case | Verdict | Detail |
 |---|---|---|---|
 | EC01 | A 40-payment batch collapsing into one bank credit | handled | 1/1 line(s) resolved correctly |
-| EC02 | Fee + 18% GST netting, so no bank amount equals any sale amount | partial | 29/31 resolved, 2 left unresolved — the open line(s) are the EC07 ambiguity trap, correctly declined there, not a failure of this case |
+| EC02 | Fee + 18% GST netting, so no bank amount equals any sale amount | partial | 29/31 resolved, 2 left unresolved, and the open line(s) are the EC07 ambiguity trap, correctly declined there, not a failure of this case |
 | EC03 | A refund buried inside a later settlement batch | handled | 4/4 line(s) resolved correctly |
 | EC04 | A chargeback debit landing 3 days after the payment settled | handled | 1/1 line(s) resolved correctly |
 | EC05 | A chargeback reversal 10 days after the chargeback | handled | 1/1 line(s) resolved correctly |
@@ -167,12 +168,12 @@ a finding.
 | EC07 | Two identical-amount payments on the same day (ambiguity trap) | correctly declined | 2 line(s) correctly declined: nothing in the data separates the candidates, so any pairing would be a coin flip |
 | EC08 | A T+2 settlement crossing a long weekend | handled | 2/2 line(s) resolved correctly |
 | EC09 | An on-hold settlement excluded from its batch's bank credit | handled | 1/1 line(s) resolved correctly |
-| EC10 | Paisa rounding drift on GST | handled | verifier rejects it — rejected at `line_arithmetic`: pay_C1: booked fee 29.98/GST 5.39, schedule gives 29.98/5.40 |
+| EC10 | Paisa rounding drift on GST | handled | verifier rejects it: rejected at `line_arithmetic`: pay_C1: booked fee 29.98/GST 5.39, schedule gives 29.98/5.40 |
 | EC11 | A bank credit that is not a settlement at all (loan disbursal) | handled | 1/1 line(s) resolved correctly |
 
 ## Audit trail
 
-`runs/run_log.jsonl` — 90 events. Every tier records the rule that fired, its inputs and its confidence, and every near-miss is recorded too: a rule that *almost* fired is the most useful thing in the file when a number looks wrong. Each bank line gets a closing `decision` record, and `run.py` replays the log after every run to check it reproduces all 38 verdicts on its own. A trail that cannot be replayed is not an audit trail, so the run fails if it drifts.
+`runs/run_log.jsonl`, 90 events. Every tier records the rule that fired, its inputs and its confidence, and every near-miss is recorded too: a rule that *almost* fired is the most useful thing in the file when a number looks wrong. Each bank line gets a closing `decision` record, and `run.py` replays the log after every run to check it reproduces all 38 verdicts on its own. A trail that cannot be replayed is not an audit trail, so the run fails if it drifts.
 
 ## Settlement-side
 
