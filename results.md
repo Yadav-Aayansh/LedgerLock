@@ -34,8 +34,9 @@ Seed 42. Reproduce with `make demo`: every figure below is byte-identical on a r
 
 ## Outcome buckets
 
-Three buckets cannot express this problem. Refusing a non-settlement is a
-win; refusing a real one is a distinct error from failing to find it.
+Three buckets cannot describe this problem. Refusing something that is not
+a settlement is a win. Refusing a real one is a different mistake from
+simply failing to find it.
 
 | Outcome | Count | Meaning |
 |---|---|---|
@@ -72,14 +73,14 @@ The 2 unresolved line(s), by what it would take to resolve them:
 
 - **Date window.** A payout is assumed to credit within 3 calendar days of its settlement date. Every amount-based tier and the refusal rule depend on it; a genuine settlement landing outside it would be missed, and could be refused.
 - **Tolerance.** ±5 paisa, sized to absorb reconstruction rounding and nothing else. It is three orders of magnitude below the smallest fee in the data, so it cannot silently swallow one. Asserted in `tests/test_tiers.py`.
-- **Refusals chain off earlier tiers.** A line is refused when the unclaimed settlements in its window provably cannot reach its amount. That proof is sound only if no earlier tier claimed a settlement wrongly. A false match could, in principle, turn into a false refusal downstream. With 0 false matches this run, no such chain exists.
+- **Refusals chain off earlier tiers.** A line is refused when the unclaimed settlements in its window cannot reach its amount. That proof holds only if no earlier tier claimed a settlement wrongly. So a false match could turn into a false refusal further down. With 0 false matches this run, no such chain exists.
 
 ## What the matches rest on
 
 A link backed by a recovered reference is not the same as a link backed by
-two numbers agreeing. Amount-and-date matching is only as good as the
-absence of a coincidence, and coincidences get likelier as a merchant gets
-busier. So the split matters more than the headline rate:
+two numbers agreeing. Amount-and-date matching is only safe while no two
+amounts collide, and collisions get likelier as a merchant gets busier.
+So this split matters more than the headline rate:
 
 | Basis | Links | Share |
 |---|---|---|
@@ -89,11 +90,11 @@ busier. So the split matters more than the headline rate:
 ### Tier ordering
 
 §9 lists T3 last, as a fuzzy last resort. That is the wrong place for it
-here, and the difference is measurable rather than arguable. T3 requires
-the payout to match exactly *as well as* the salvaged reference, which
-makes it stronger evidence than T1/T2's amount-and-date agreement, not
-weaker. Run last, T2 claims those lines first on arithmetic alone and the
-reference is never consulted. Both orders were run on this dataset:
+here, and the difference can be measured instead of argued. T3 needs the
+payout to match exactly *as well as* the salvaged reference, which makes
+it stronger evidence than T1 and T2's amount-and-date agreement, not
+weaker. Put it last and T2 claims those lines first on arithmetic alone,
+and the reference never gets looked at. Both orders were run here:
 
 | Order | Matches | Reference-backed | Amount-only |
 |---|---|---|---|
@@ -118,18 +119,18 @@ model that declines is scoring well. Had it guessed, the verifier would
 have rejected the guess at `determinacy`. The run is safe either way,
 but only one of those outcomes is the model being right.
 
-Responses are recorded to `runs/analyst_cache.jsonl` keyed by a hash of the
-exact prompt, and replayed on later runs. A report whose figures move
-between runs is not reproducible, so the model is called once and its
-answer is pinned: `--analyst live` records, the default replays.
+Responses go to `runs/analyst_cache.jsonl`, keyed by a hash of the exact
+prompt, and replay on later runs. A report whose figures move between runs
+is not reproducible, so the model is called once and its answer is pinned.
+`--analyst live` records, the default replays.
 
 ### Verifier, measured against deliberate mistakes
 
 A verifier that accepts everything looks exactly like a model that is
-always right. With no model calls on this run, the verifier is instead
-measured against a fixed suite of fabricated proposals shaped like the
-errors this task actually produces. A case rejected for the *wrong*
-reason counts as a failure.
+always right. With no model calls this run, the verifier is measured
+against a fixed set of fake proposals shaped like the mistakes this task
+actually produces. A case rejected for the *wrong* reason counts as a
+failure, not a pass.
 
 | Fabricated mistake | Should be | Verifier said | |
 |---|---|---|---|
@@ -147,13 +148,14 @@ reason counts as a failure.
 
 **11/11 adjudicated correctly.**
 
-The fifth row is the one that matters most. Its arithmetic is flawless,
-the proposed settlements net to the credit exactly, and an
-arithmetic-only verifier would accept it and record a coin flip as a
-verified fact. Recomputing the maths is necessary but not sufficient, so
-the verifier also refuses any proposal for a line the deterministic engine
-already proved indeterminate. A claim that no evidence can falsify is not
-a finding.
+One row matters more than the rest: the balanced guess on an indeterminate
+line. Its arithmetic is flawless. The proposed settlements net to the
+credit exactly. An arithmetic-only verifier would accept it and write a
+coin flip down as a verified fact.
+
+So recomputing the maths is necessary but not enough. The verifier also
+refuses any proposal for a line the engine already proved indeterminate.
+A claim that no evidence can disprove is not a finding.
 
 ## Planted edge cases (§8)
 

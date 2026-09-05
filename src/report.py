@@ -119,8 +119,9 @@ def write_results(path, s, m, meta, decisions):
     a("")
 
     a("## Outcome buckets\n")
-    a("Three buckets cannot express this problem. Refusing a non-settlement is a\n"
-      "win; refusing a real one is a distinct error from failing to find it.\n")
+    a("Three buckets cannot describe this problem. Refusing something that is not\n"
+      "a settlement is a win. Refusing a real one is a different mistake from\n"
+      "simply failing to find it.\n")
     a("| Outcome | Count | Meaning |\n|---|---|---|")
     for key, label, meaning in BUCKET_LABELS:
         a(f"| {label} | {s.n(key)} | {meaning} |")
@@ -165,17 +166,17 @@ def write_results(path, s, m, meta, decisions):
       f"magnitude below the smallest fee in the data, so it cannot silently "
       f"swallow one. Asserted in `tests/test_tiers.py`.")
     a("- **Refusals chain off earlier tiers.** A line is refused when the "
-      "unclaimed settlements in its window provably cannot reach its amount. "
-      "That proof is sound only if no earlier tier claimed a settlement "
-      "wrongly. A false match could, in principle, turn into a false refusal "
-      "downstream. With 0 false matches this run, no such chain exists.")
+      "unclaimed settlements in its window cannot reach its amount. That proof "
+      "holds only if no earlier tier claimed a settlement wrongly. So a false "
+      "match could turn into a false refusal further down. With 0 false matches "
+      "this run, no such chain exists.")
     a("")
 
     a("## What the matches rest on\n")
     a("A link backed by a recovered reference is not the same as a link backed by\n"
-      "two numbers agreeing. Amount-and-date matching is only as good as the\n"
-      "absence of a coincidence, and coincidences get likelier as a merchant gets\n"
-      "busier. So the split matters more than the headline rate:\n")
+      "two numbers agreeing. Amount-and-date matching is only safe while no two\n"
+      "amounts collide, and collisions get likelier as a merchant gets busier.\n"
+      "So this split matters more than the headline rate:\n")
     split, per_tier = meta["evidence"]
     total = sum(split.values()) or 1
     a("| Basis | Links | Share |\n|---|---|---|")
@@ -188,11 +189,11 @@ def write_results(path, s, m, meta, decisions):
     alt_order, (alt_split, alt_tiers) = meta["alt_order"]
     a("### Tier ordering\n")
     a("§9 lists T3 last, as a fuzzy last resort. That is the wrong place for it\n"
-      "here, and the difference is measurable rather than arguable. T3 requires\n"
-      "the payout to match exactly *as well as* the salvaged reference, which\n"
-      "makes it stronger evidence than T1/T2's amount-and-date agreement, not\n"
-      "weaker. Run last, T2 claims those lines first on arithmetic alone and the\n"
-      "reference is never consulted. Both orders were run on this dataset:\n")
+      "here, and the difference can be measured instead of argued. T3 needs the\n"
+      "payout to match exactly *as well as* the salvaged reference, which makes\n"
+      "it stronger evidence than T1 and T2's amount-and-date agreement, not\n"
+      "weaker. Put it last and T2 claims those lines first on arithmetic alone,\n"
+      "and the reference never gets looked at. Both orders were run here:\n")
     a("| Order | Matches | Reference-backed | Amount-only |\n|---|---|---|---|")
     a(f"| `{' → '.join(meta['tiers'])}` (reported) | {total} | "
       f"{split['reference+amount']} | {split['amount+date']} |")
@@ -224,31 +225,31 @@ def write_results(path, s, m, meta, decisions):
           f"model that declines is scoring well. Had it guessed, the verifier would\n"
           f"have rejected the guess at `determinacy`. The run is safe either way,\n"
           f"but only one of those outcomes is the model being right.\n")
-    a("Responses are recorded to `runs/analyst_cache.jsonl` keyed by a hash of the\n"
-      "exact prompt, and replayed on later runs. A report whose figures move\n"
-      "between runs is not reproducible, so the model is called once and its\n"
-      "answer is pinned: `--analyst live` records, the default replays.\n")
+    a("Responses go to `runs/analyst_cache.jsonl`, keyed by a hash of the exact\n"
+      "prompt, and replay on later runs. A report whose figures move between runs\n"
+      "is not reproducible, so the model is called once and its answer is pinned.\n"
+      "`--analyst live` records, the default replays.\n")
 
     results, rt_passed, rt_total = meta["redteam"]
     a("### Verifier, measured against deliberate mistakes\n")
     a("A verifier that accepts everything looks exactly like a model that is\n"
-      "always right. With no model calls on this run, the verifier is instead\n"
-      "measured against a fixed suite of fabricated proposals shaped like the\n"
-      "errors this task actually produces. A case rejected for the *wrong*\n"
-      "reason counts as a failure.\n")
+      "always right. With no model calls this run, the verifier is measured\n"
+      "against a fixed set of fake proposals shaped like the mistakes this task\n"
+      "actually produces. A case rejected for the *wrong* reason counts as a\n"
+      "failure, not a pass.\n")
     a("| Fabricated mistake | Should be | Verifier said | |\n|---|---|---|---|")
     for r in results:
         a(f"| {r['mistake']} | {r['expected']} | {r['actual']} | "
           f"{'✓' if r['ok'] else '✗'} |")
     a("")
     a(f"**{rt_passed}/{rt_total} adjudicated correctly.**\n")
-    a("The fifth row is the one that matters most. Its arithmetic is flawless,\n"
-      "the proposed settlements net to the credit exactly, and an\n"
-      "arithmetic-only verifier would accept it and record a coin flip as a\n"
-      "verified fact. Recomputing the maths is necessary but not sufficient, so\n"
-      "the verifier also refuses any proposal for a line the deterministic engine\n"
-      "already proved indeterminate. A claim that no evidence can falsify is not\n"
-      "a finding.\n")
+    a("One row matters more than the rest: the balanced guess on an indeterminate\n"
+      "line. Its arithmetic is flawless. The proposed settlements net to the\n"
+      "credit exactly. An arithmetic-only verifier would accept it and write a\n"
+      "coin flip down as a verified fact.\n\n"
+      "So recomputing the maths is necessary but not enough. The verifier also\n"
+      "refuses any proposal for a line the engine already proved indeterminate.\n"
+      "A claim that no evidence can disprove is not a finding.\n")
 
     a("## Planted edge cases (§8)\n")
     a("| # | Case | Verdict | Detail |\n|---|---|---|---|")
@@ -279,8 +280,8 @@ def write_exceptions(path, s, decisions, bank_by_id, groups, meta):
     L = []
     a = L.append
     a("# exceptions.md\n")
-    a("Every line the engine did not resolve, individually, with the reason it\n"
-      "actually recorded. Nothing here is aggregated away.\n")
+    a("Every line the engine did not resolve, one by one, with the reason it\n"
+      "actually recorded. Nothing here is averaged away.\n")
     a(f"Tiers active: {', '.join(meta['tiers'])}.\n")
 
     wrong = s.by_bucket(FALSE_MATCH) + s.by_bucket(FALSE_REFUSAL)
@@ -306,16 +307,16 @@ def write_exceptions(path, s, decisions, bank_by_id, groups, meta):
     if ambiguous:
         bank_total = sum(bank_by_id[o.bank_txn_id].signed for o in ambiguous)
         left_total = sum(groups[sid].payout for sid in s.unclaimed_settlements)
-        a("Worth being precise about what is and is not unknown here. The "
+        a("Worth being clear about what is unknown here and what is not. The "
           f"{len(ambiguous)} lines below total ₹{format_rupees(bank_total)}, and the "
           f"{len(s.unclaimed_settlements)} settlements left over total "
           f"₹{format_rupees(left_total)}"
           + (", the same figure. " if bank_total == left_total else ". ") +
-          "So the money is accounted for in aggregate; what cannot be determined "
-          "is which credit belongs to which settlement. Matching them at the set "
-          "level would be defensible and is noted as future work, but it is a "
-          "different claim from the per-line links everywhere else in this report, "
-          "so the engine does not quietly make it.\n")
+          "So the money is accounted for in total. What cannot be worked out is "
+          "which credit belongs to which settlement. Matching them at the set "
+          "level would be defensible, and it is noted as future work, but it is a "
+          "different claim from the per-line links everywhere else in this report. "
+          "So the engine does not slip it in.\n")
     for o in misses:
         txn = bank_by_id[o.bank_txn_id]
         d = decisions[o.bank_txn_id]
@@ -341,9 +342,9 @@ def write_exceptions(path, s, decisions, bank_by_id, groups, meta):
 
     foreign = s.by_bucket(FOREIGN_UNRESOLVED) + s.by_bucket(CORRECT_REFUSAL)
     a(f"## Not settlements at all ({len(foreign)})\n")
-    a("Ground truth says none of these link to anything. Leaving them alone is\n"
-      "correct; the distinction below is between actively declining and merely\n"
-      "not finding a match.\n")
+    a("The answer key says none of these link to anything. Leaving them alone is\n"
+      "correct. What the list below separates is actively declining a line from\n"
+      "just never finding a match for it.\n")
     for o in foreign:
         txn = bank_by_id[o.bank_txn_id]
         stance = "**refused**" if o.bucket == CORRECT_REFUSAL else "passively skipped"
@@ -353,9 +354,9 @@ def write_exceptions(path, s, decisions, bank_by_id, groups, meta):
     a("")
 
     a(f"## Settlements with no bank line ({len(s.unclaimed_settlements)})\n")
-    a("The other direction: money the report says was settled that no bank line\n"
-      "was matched to. An on-hold line belongs here permanently; the rest are\n"
-      "the mirror image of the unresolved list above.\n")
+    a("The other direction. Money the report says was settled, that no bank line\n"
+      "was matched to. An on-hold line belongs here permanently. The rest are the\n"
+      "mirror image of the unresolved list above.\n")
     for sid in s.unclaimed_settlements:
         g = groups[sid]
         held = [r.entity_id for r in g.rows if r.status != "processed"]

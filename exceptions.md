@@ -1,7 +1,7 @@
 # exceptions.md
 
-Every line the engine did not resolve, individually, with the reason it
-actually recorded. Nothing here is aggregated away.
+Every line the engine did not resolve, one by one, with the reason it
+actually recorded. Nothing here is averaged away.
 
 Tiers active: T0, T3, T1, T2, T2b.
 
@@ -12,7 +12,7 @@ settlement was refused.
 
 ## Unresolved settlement lines (2)
 
-Worth being precise about what is and is not unknown here. The 2 lines below total ₹2927.24, and the 2 settlements left over total ₹2927.24, the same figure. So the money is accounted for in aggregate; what cannot be determined is which credit belongs to which settlement. Matching them at the set level would be defensible and is noted as future work, but it is a different claim from the per-line links everywhere else in this report, so the engine does not quietly make it.
+Worth being clear about what is unknown here and what is not. The 2 lines below total ₹2927.24, and the 2 settlements left over total ₹2927.24, the same figure. So the money is accounted for in total. What cannot be worked out is which credit belongs to which settlement. Matching them at the set level would be defensible, and it is noted as future work, but it is a different claim from the per-line links everywhere else in this report. So the engine does not slip it in.
 
 ### bank_0024 _[EC07]_
 
@@ -31,9 +31,9 @@ Worth being precise about what is and is not unknown here. The 2 lines below tot
 
 ## Not settlements at all (5)
 
-Ground truth says none of these link to anything. Leaving them alone is
-correct; the distinction below is between actively declining and merely
-not finding a match.
+The answer key says none of these link to anything. Leaving them alone is
+correct. What the list below separates is actively declining a line from
+just never finding a match for it.
 
 - `bank_0004` `2025-06-05` ₹-35000.00: `UPI/DR/512334123/PROPCO REALTY/OFFICE RENT JUN` → **refused**
 - `bank_0011` `2025-06-12` ₹-12450.00: `ACH-DR-VENDOR PAYMENT-SUPPLYCO PACKAGING` → **refused**
@@ -43,9 +43,9 @@ not finding a match.
 
 ## Settlements with no bank line (2)
 
-The other direction: money the report says was settled that no bank line
-was matched to. An on-hold line belongs here permanently; the rest are
-the mirror image of the unresolved list above.
+The other direction. Money the report says was settled, that no bank line
+was matched to. An on-hold line belongs here permanently. The rest are the
+mirror image of the unresolved list above.
 
 - `stl_00020`: 1 line(s), payout ₹1463.62, settled 2025-06-24
 - `stl_00021`: 1 line(s), payout ₹1463.62, settled 2025-06-24
