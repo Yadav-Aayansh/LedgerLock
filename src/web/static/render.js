@@ -21,7 +21,7 @@ export function stats(d) {
     card('lead', 'Paid out', rs(d.settled), `${d.settlement_rows} rows in ${d.settlement_batches} payouts`),
     card('', 'Reached bank', rs(d.banked), `${d.bank_lines} statement lines`),
     card('', 'Fees and GST', rs(d.fee_gap), 'deducted before payout'),
-    card('warn', 'Not from Razorpay', rs(d.bank_gap), 'must be refused, not matched'),
+    card('warn', 'Unexplained by settlements', rs(d.bank_gap), 'must be refused, not matched'),
   ].join('');
 }
 
@@ -85,9 +85,27 @@ export function engineSummary(run) {
       ${s('', 'Runtime', `${run.runtime_ms} ms`, `${run.audit_events} audit events`)}
       ${s('', 'Evidence', run.evidence['reference+amount'], `reference-backed, ${run.evidence['amount+date']} on amount and date`)}
     </div>
-    <div class="notice info">Salvage runs second, not last: ${esc(cmp.spec_literal.order.join(' '))}
-      becomes ${esc(cmp.used.order.join(' '))}. Same match count, reference-backed evidence rises from
-      ${cmp.spec_literal.evidence['reference+amount']} to ${cmp.used.evidence['reference+amount']}.</div>`;
+    ${orderNote(cmp)}`;
+}
+
+
+function orderNote(cmp) {
+  const a = cmp.spec_literal.evidence;
+  const b = cmp.used.evidence;
+  const total = (e) => e['reference+amount'] + e['amount+date'];
+  const same = total(a) === total(b);
+  const ref = b['reference+amount'] - a['reference+amount'];
+  const counts = same
+    ? `Same match count (${total(b)}).`
+    : `Match count changes from ${total(a)} to ${total(b)}.`;
+  const evidence = ref > 0
+    ? `Reference-backed evidence rises from ${a['reference+amount']} to ${b['reference+amount']}.`
+    : ref < 0
+      ? `Reference-backed evidence falls from ${a['reference+amount']} to ${b['reference+amount']}.`
+      : `Reference-backed evidence is unchanged at ${b['reference+amount']}.`;
+  return `<div class="notice info">Salvage runs second, not last:
+    ${esc(cmp.spec_literal.order.join(' '))} becomes ${esc(cmp.used.order.join(' '))}.
+    ${counts} ${evidence}</div>`;
 }
 
 export function decisionTable(run) {
@@ -148,8 +166,8 @@ export function decisionDetail(d) {
         <dt>confidence</dt><dd class="num">${d.confidence ? d.confidence.toFixed(2) : '—'}</dd>
         <dt>lines</dt><dd class="num">${d.line_count || '—'}</dd>
       </dl>
-      ${linked ? `<sect><h4>linked settlements</h4>${linked}</sect>` : ''}
-      ${trail ? `<sect><h4>audit trail</h4><ul class="trail">${trail}</ul></sect>` : ''}
+      ${linked ? `<section><h4>linked settlements</h4>${linked}</section>` : ''}
+      ${trail ? `<section><h4>audit trail</h4><ul class="trail">${trail}</ul></section>` : ''}
     </div>`;
 }
 
@@ -230,6 +248,12 @@ const VTAG = {
 export function accuracyPanel(s) {
   if (!s.available) return `<div class="notice warn">${esc(s.why)}</div>`;
   const m = s.metrics;
+  const partial = (s.unscored || []).length
+    ? `<div class="notice warn">The answer key covers ${m.linkable + m.foreign} of
+       ${m.linkable + m.foreign + s.unscored.length} bank lines.
+       ${s.unscored.length} line(s) are excluded from every figure below:
+       ${esc(s.unscored.join(', '))}.</div>`
+    : '';
 
   const buckets = Object.entries(BUCKET).map(([k, label]) => {
     const n = s.counts[k] ?? 0;
@@ -253,6 +277,7 @@ export function accuracyPanel(s) {
       <span class="lab"><b>${esc(e.label)}</b>${code(e.detail)}</span></li>`).join('');
 
   return `
+    ${partial}
     <div class="headline">
       <div class="fig">${m.false_matches}<small>false matches in ${m.asserted_matches} links</small></div>
       <div class="side-stats">

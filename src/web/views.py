@@ -15,8 +15,8 @@ MAX_LEDGER_ROWS = 2000
 
 STATUS_LABEL = {
     "matched": "Matched",
-    "refused": "Refused — proved not a settlement",
-    "unresolved": "Unresolved — declined to guess",
+    "refused": "Refused, proved not a settlement",
+    "unresolved": "Unresolved, declined to guess",
 }
 
 RESIDUE_LABEL = {
@@ -128,7 +128,7 @@ def decision(result, txn):
         "date": txn.txn_date.isoformat(),
         "narration": txn.narration,
         "amount": format_rupees(txn.signed),
-        "direction": "credit" if txn.signed >= 0 else "debit",
+        "direction": "credit" if txn.signed > 0 else "debit",
         "status": d.status,
         "status_label": STATUS_LABEL.get(d.status, d.status),
         "tier": d.tier or None,
@@ -249,6 +249,7 @@ def score(result):
              "residue_kind": o.residue_kind or None, "expected_lines": o.expected_lines}
             for o in s.outcomes],
         "counts": s.counts,
+        "unscored": s.unscored,
         "hold_excluded_correctly": s.hold_excluded_correctly,
         "unclaimed_settlements": s.unclaimed_settlements,
         "edge_cases": [
