@@ -1,0 +1,9 @@
+{
+  "provider": "local",
+  "protocol": "openai",
+  "base_url": "http://127.0.0.1:8090/v1",
+  "model": "gemini-2.5-pro",
+  "key_env": "",
+  "price": [],
+  "note": "recorded so cached responses replay without flags; never a key"
+}
