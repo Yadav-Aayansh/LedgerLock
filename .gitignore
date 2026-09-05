@@ -1,0 +1,56 @@
+# ---------------------------------------------------------------------------
+# LedgerLock — .gitignore
+#
+# NOTE ON WHAT IS *NOT* IGNORED (deliberate, per project-statement.md §12):
+#   results.md              the metrics table — root level, non-negotiable
+#   exceptions.md           the honest unresolved list
+#   runs/run_log.jsonl      full audit trail; `make run` replays every verdict from it
+#   runs/analyst_cache.jsonl    recorded LLM responses — makes the run reproducible
+#                               with no API key and no network
+#   runs/analyst_provider.json  which provider/model produced that cache
+#   data/*.csv              seed-42 output; committed so a judge can read the mess
+#                           without running anything. `make data` regenerates them
+#                           byte-identically.
+#   uv.lock                 pins the viewer's dependencies; the engine has none
+# These are the submission. Do not add them below.
+# ---------------------------------------------------------------------------
+
+# Python bytecode
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+
+# Secrets — API keys are read from the environment only, never from a flag.
+# Nothing here should ever reach a commit.
+.env
+.env.*
+!.env.example
+*.key
+*.pem
+secrets.json
+
+# Tooling caches
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Editors / OS
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# Scratch — local experiments, not part of the submission
+scratch/
+tmp/
+*.log
