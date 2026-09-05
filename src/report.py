@@ -35,7 +35,7 @@ ZERO_TIER_NOTES = {
 }
 
 RESIDUE_KINDS = {
-    "ambiguous": ("Genuinely ambiguous — more than one settlement fits equally well",
+    "ambiguous": ("Genuinely ambiguous: more than one settlement fits equally well",
                   "a reference the data does not contain; guessing is a coin flip"),
     "t3_salvage": ("Mangled UTR that still points somewhere",
                    "T3 narration salvage"),
@@ -58,9 +58,12 @@ def write_results(path, s, m, meta, decisions):
     L = []
     a = L.append
     a("# results.md\n")
-    a(f"Generated {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M UTC')} "
-      f"from seed {meta['seed']}. Reproduce with `make demo`: every figure below "
-      f"is byte-identical on a rerun except wall-clock runtime, which is a "
+    if s.unscored:
+        a(f"> **Partial answer key.** {len(s.unscored)} bank line(s) have no row in "
+          f"`ground_truth.csv` and are excluded from every figure below: "
+          f"{', '.join(f'`{b}`' for b in s.unscored)}.\n")
+    a(f"Seed {meta['seed']}. Reproduce with `make demo`: every figure below is "
+      f"byte-identical on a rerun except wall-clock runtime, which is a "
       f"measurement of this machine rather than a result.\n")
     a(f"**Tiers active: {', '.join(meta['tiers'])}.** "
       f"{meta['not_built']}\n")
@@ -74,8 +77,8 @@ def write_results(path, s, m, meta, decisions):
     a("## Dataset\n")
     a("| | |\n|---|---|")
     a(f"| Bank lines | {meta['bank_lines']} |")
-    a(f"| — of which genuine settlement lines | {m['linkable']} |")
-    a(f"| — of which not settlements at all | {m['foreign']} |")
+    a(f"| of which genuine settlement lines | {m['linkable']} |")
+    a(f"| of which not settlements at all | {m['foreign']} |")
     a(f"| Settlement report lines | {meta['settlement_lines']} "
       f"in {meta['settlements']} settlements |")
     a(f"| Orders | {meta['orders']} |")
@@ -107,7 +110,7 @@ def write_results(path, s, m, meta, decisions):
         # are not in the pricing table. Reporting a made-up figure would be
         # worse than reporting none.
         cost_cell = f"{tokens / answered * 50:,.0f} tokens per 50 lines"
-        cost_den = (f"{an.model} — {tokens:,} tokens over {answered} line(s); "
+        cost_den = (f"{an.model}, {tokens:,} tokens over {answered} line(s); "
                     f"no published rate asserted for this provider")
     else:
         cost_cell, cost_den = "—", "no model calls made this run"
@@ -164,7 +167,7 @@ def write_results(path, s, m, meta, decisions):
     a("- **Refusals chain off earlier tiers.** A line is refused when the "
       "unclaimed settlements in its window provably cannot reach its amount. "
       "That proof is sound only if no earlier tier claimed a settlement "
-      "wrongly — a false match could, in principle, turn into a false refusal "
+      "wrongly. A false match could, in principle, turn into a false refusal "
       "downstream. With 0 false matches this run, no such chain exists.")
     a("")
 
@@ -219,12 +222,12 @@ def write_results(path, s, m, meta, decisions):
           f"date with no reference to separate them. §10 makes \"I cannot resolve\n"
           f"this\" a first-class output and the prompt asks for it explicitly, so a\n"
           f"model that declines is scoring well. Had it guessed, the verifier would\n"
-          f"have rejected the guess at `determinacy` — the run is safe either way,\n"
+          f"have rejected the guess at `determinacy`. The run is safe either way,\n"
           f"but only one of those outcomes is the model being right.\n")
     a("Responses are recorded to `runs/analyst_cache.jsonl` keyed by a hash of the\n"
       "exact prompt, and replayed on later runs. A report whose figures move\n"
       "between runs is not reproducible, so the model is called once and its\n"
-      "answer is pinned — `--analyst live` records, the default replays.\n")
+      "answer is pinned: `--analyst live` records, the default replays.\n")
 
     results, rt_passed, rt_total = meta["redteam"]
     a("### Verifier, measured against deliberate mistakes\n")
@@ -239,8 +242,8 @@ def write_results(path, s, m, meta, decisions):
           f"{'✓' if r['ok'] else '✗'} |")
     a("")
     a(f"**{rt_passed}/{rt_total} adjudicated correctly.**\n")
-    a("The fifth row is the one that matters most. Its arithmetic is flawless —\n"
-      "the proposed settlements net to the credit exactly — and an\n"
+    a("The fifth row is the one that matters most. Its arithmetic is flawless,\n"
+      "the proposed settlements net to the credit exactly, and an\n"
       "arithmetic-only verifier would accept it and record a coin flip as a\n"
       "verified fact. Recomputing the maths is necessary but not sufficient, so\n"
       "the verifier also refuses any proposal for a line the deterministic engine\n"
@@ -255,7 +258,7 @@ def write_results(path, s, m, meta, decisions):
     a("")
 
     a("## Audit trail\n")
-    a(f"`runs/run_log.jsonl` — {meta['audit_events']} events. Every tier records "
+    a(f"`runs/run_log.jsonl`, {meta['audit_events']} events. Every tier records "
       f"the rule that fired, its inputs and its confidence, and every near-miss "
       f"is recorded too: a rule that *almost* fired is the most useful thing in "
       f"the file when a number looks wrong. Each bank line gets a closing "
@@ -289,9 +292,9 @@ def write_exceptions(path, s, decisions, bank_by_id, groups, meta):
         for o in wrong:
             txn = bank_by_id[o.bank_txn_id]
             d = decisions[o.bank_txn_id]
-            a(f"### {o.bank_txn_id} — {o.bucket}\n")
-            a(f"- `{txn.txn_date}` **₹{format_rupees(txn.signed)}** — `{txn.narration}`")
-            a(f"- Engine said: {d.status} via {d.tier or '—'} — {d.reason}")
+            a(f"### {o.bank_txn_id}: {o.bucket}\n")
+            a(f"- `{txn.txn_date}` **₹{format_rupees(txn.signed)}**, `{txn.narration}`")
+            a(f"- Engine said: {d.status} via {d.tier or 'none'}. {d.reason}")
             a(f"- Why it is wrong: {o.detail}\n")
 
     misses = s.by_bucket(HONEST_MISS)
@@ -307,7 +310,7 @@ def write_exceptions(path, s, decisions, bank_by_id, groups, meta):
           f"{len(ambiguous)} lines below total ₹{format_rupees(bank_total)}, and the "
           f"{len(s.unclaimed_settlements)} settlements left over total "
           f"₹{format_rupees(left_total)}"
-          + (" — the same figure. " if bank_total == left_total else ". ") +
+          + (", the same figure. " if bank_total == left_total else ". ") +
           "So the money is accounted for in aggregate; what cannot be determined "
           "is which credit belongs to which settlement. Matching them at the set "
           "level would be defensible and is noted as future work, but it is a "
@@ -318,7 +321,7 @@ def write_exceptions(path, s, decisions, bank_by_id, groups, meta):
         d = decisions[o.bank_txn_id]
         tags = f" _[{', '.join(o.edge_cases)}]_" if o.edge_cases else ""
         a(f"### {o.bank_txn_id}{tags}\n")
-        a(f"- `{txn.txn_date}` **₹{format_rupees(txn.signed)}** — `{txn.narration}`")
+        a(f"- `{txn.txn_date}` **₹{format_rupees(txn.signed)}**, `{txn.narration}`")
         a(f"- Honest reason: {d.reason}")
         a("")
 
@@ -326,12 +329,12 @@ def write_exceptions(path, s, decisions, bank_by_id, groups, meta):
     if an is not None and an.outcomes:
         a("## What the analyst said\n")
         if an.mode == "off":
-            a(f"The analyst did not run — there were {an.unavailable_reason}. The lines "
+            a(f"The analyst did not run: there were {an.unavailable_reason}. The lines "
               f"below were "
               f"left exactly as the deterministic engine left them, rather than being "
               f"filled in with a plausible guess.\n")
         for o in an.outcomes:
-            a(f"- `{o.bank_txn_id}` — **{o.status}**"
+            a(f"- `{o.bank_txn_id}`: **{o.status}**"
               + (f": {o.hypothesis}" if o.hypothesis else "")
               + (f" _{o.detail}_" if o.detail else ""))
         a("")
@@ -345,7 +348,7 @@ def write_exceptions(path, s, decisions, bank_by_id, groups, meta):
         txn = bank_by_id[o.bank_txn_id]
         stance = "**refused**" if o.bucket == CORRECT_REFUSAL else "passively skipped"
         tags = f" _[{', '.join(o.edge_cases)}]_" if o.edge_cases else ""
-        a(f"- `{o.bank_txn_id}` `{txn.txn_date}` ₹{format_rupees(txn.signed)} — "
+        a(f"- `{o.bank_txn_id}` `{txn.txn_date}` ₹{format_rupees(txn.signed)}: "
           f"`{txn.narration}` → {stance}{tags}")
     a("")
 
@@ -356,8 +359,8 @@ def write_exceptions(path, s, decisions, bank_by_id, groups, meta):
     for sid in s.unclaimed_settlements:
         g = groups[sid]
         held = [r.entity_id for r in g.rows if r.status != "processed"]
-        note = f" — {len(held)} line(s) on hold: {', '.join(held)}" if held else ""
-        a(f"- `{sid}` — {len(g.processed)} line(s), payout ₹{format_rupees(g.payout)}, "
+        note = f", {len(held)} line(s) on hold: {', '.join(held)}" if held else ""
+        a(f"- `{sid}`: {len(g.processed)} line(s), payout ₹{format_rupees(g.payout)}, "
           f"settled {g.settled_at}{note}")
     a("")
 

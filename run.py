@@ -27,6 +27,10 @@ def parse_args():
     ap.add_argument("--data", type=Path, default=ROOT / "data")
     ap.add_argument("--runs", type=Path, default=ROOT / "runs")
     ap.add_argument("--seed", type=int, default=42)
+    ap.add_argument("--out", type=Path, default=None,
+                    help="where results.md and exceptions.md are written. "
+                         "Defaults beside --data, so pointing at another dataset "
+                         "cannot overwrite this repository's report")
     ap.add_argument("--analyst", choices=["auto", "off", "replay", "live"], default="auto",
                     help="auto replays cached responses when present, else stays off; "
                          "live calls the API and records what comes back")
@@ -45,6 +49,16 @@ def parse_args():
                     help="USD per 1M input,output tokens, so cost can be reported "
                          "for a model whose rates are not built in")
     return ap.parse_args()
+
+
+def _price(text):
+    if not text:
+        return None
+    try:
+        a, b = (float(x) for x in text.split(","))
+    except ValueError:
+        raise SystemExit("--analyst-price wants two numbers, as IN,OUT") from None
+    return [a, b]
 
 
 def summarise(r, runs_dir):
@@ -75,6 +89,7 @@ def summarise(r, runs_dir):
 
 def main():
     args = parse_args()
+    out_dir = args.out or args.data.resolve().parent
     provider = pipeline.resolve_provider(
         args.runs,
         preset=args.analyst_provider,
@@ -82,7 +97,7 @@ def main():
         model=args.analyst_model,
         protocol=args.analyst_protocol,
         key_env=args.analyst_key_env,
-        price=[float(x) for x in args.analyst_price.split(",")] if args.analyst_price else None,
+        price=_price(args.analyst_price),
     )
 
     r = pipeline.execute(args.data, args.runs, seed=args.seed,
@@ -92,8 +107,10 @@ def main():
         print("no ground_truth.csv in the data directory; cannot score this run")
         return 1
 
-    report.write_results(ROOT / "results.md", r.score, r.metrics, r.meta, r.state.decisions)
-    report.write_exceptions(ROOT / "exceptions.md", r.score, r.state.decisions,
+    out_dir.mkdir(parents=True, exist_ok=True)
+    report.write_results(out_dir / "results.md", r.score, r.metrics, r.meta,
+                         r.state.decisions)
+    report.write_exceptions(out_dir / "exceptions.md", r.score, r.state.decisions,
                             r.bank_by_id, r.groups, r.meta)
 
     summarise(r, args.runs)
@@ -106,7 +123,7 @@ def main():
         return 1
     print(f"  trail replay      OK — all {len(r.state.decisions)} verdicts reproduced "
           f"from the log alone")
-    print("  wrote results.md, exceptions.md")
+    print(f"  wrote {out_dir / 'results.md'}, {out_dir / 'exceptions.md'}")
     return 0
 
 
