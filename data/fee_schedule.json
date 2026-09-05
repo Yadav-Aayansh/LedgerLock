@@ -1,0 +1,9 @@
+{
+  "currency": "INR",
+  "platform_fee_rate": "0.02",
+  "gst_on_fee_rate": "0.18",
+  "netting": "net = gross - fee - gst_on_fee",
+  "rounding": "half-up to the paisa, applied to the fee first and then to the GST on that fee",
+  "refunds": "the platform fee on the original payment is not returned; a refund nets at full face value",
+  "known_limitation": "a single flat schedule for every payment method; real merchants have per-method rates"
+}
