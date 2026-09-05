@@ -73,6 +73,11 @@ class Score:
     hold_excluded_correctly: bool = False
     unclaimed_settlements: list = field(default_factory=list)
     edge_verdicts: dict = field(default_factory=dict)
+    unscored: list = field(default_factory=list)
+
+    @property
+    def complete(self):
+        return not self.unscored
 
     def by_bucket(self, bucket):
         return [o for o in self.outcomes if o.bucket == bucket]
@@ -97,7 +102,10 @@ def score(decisions, truth_rows, unclaimed, redteam=None):
     s = Score(unclaimed_settlements=sorted(unclaimed))
 
     for bank_txn_id, d in decisions.items():
-        truth = by_bank[bank_txn_id]
+        truth = by_bank.get(bank_txn_id)
+        if truth is None:
+            s.unscored.append(bank_txn_id)
+            continue
         relation = truth["relation_type"]
         is_foreign = relation == "foreign"
         expected = _split(truth["payment_ids"])
@@ -130,6 +138,7 @@ def score(decisions, truth_rows, unclaimed, redteam=None):
             d.tier, detail, expected_lines=len(expected),
             residue_kind=d.residue_kind))
 
+    s.unscored.sort()
     for o in s.outcomes:
         s.counts[o.bucket] = s.counts.get(o.bucket, 0) + 1
     s.linkable = sum(1 for o in s.outcomes if o.relation != "foreign")
@@ -155,7 +164,7 @@ def _edge_verdicts(s, by_bank, redteam):
             if case is None:
                 verdicts[ec] = ("deferred", "verifier suite did not run")
             elif case["ok"]:
-                verdicts[ec] = ("handled", f"verifier rejects it — {case['summary']}")
+                verdicts[ec] = ("handled", f"verifier rejects it: {case['summary']}")
             else:
                 verdicts[ec] = ("failed", f"verifier {case['actual']}, "
                                           f"expected {case['expected']}")
@@ -204,7 +213,7 @@ def _edge_verdicts(s, by_bank, redteam):
                 # Not a gap in this case's handling: the open lines are open
                 # because of a different planted case. Say which, rather than
                 # letting the verdict read as a shortfall here.
-                why = (" — the open line(s) are the EC07 ambiguity trap, correctly "
+                why = (", and the open line(s) are the EC07 ambiguity trap, correctly "
                        "declined there, not a failure of this case")
             verdicts[ec] = ("partial", f"{good}/{len(rows)} resolved, "
                                        f"{len(rows) - good} left unresolved{why}")
